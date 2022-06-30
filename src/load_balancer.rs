@@ -7,9 +7,19 @@ pub const ZERO_OR_NEGATIVE_SERVERS: &'static str = "Il numero di server è 0 o u
 #[derive(Debug)]
 pub struct SocketAddress(pub String, pub String);
 
+impl SocketAddress {
+    pub fn to_string(&self) -> String {
+        let mut s = String::with_capacity(20);
+        s.push_str(&self.0);
+        s.push(':');
+        s.push_str(&self.1);
+        return s;
+    }
+}
+
 impl Display for SocketAddress {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}:{}", self.0, self.1)
+        write!(f, "{}", self.to_string())
     }
 }
 

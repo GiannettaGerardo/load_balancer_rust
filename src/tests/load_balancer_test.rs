@@ -1,5 +1,7 @@
 #[cfg(test)]
 mod tests {
+    use std::{sync::Arc, thread};
+    use dashmap::DashMap;
     use crate::load_balancer::*;
 
     fn add_soc_addr(wrrlb: &mut WeightedRoundRobinLB) -> Result<(), &'static str> {
@@ -61,6 +63,48 @@ mod tests {
         match add_soc_addr(&mut fixture) {
             Ok(()) => panic!("push_max_plus_one_server_should_return_error -> Ok arm"),
             Err(e) => assert_eq!(e, TOO_MANY_SERVERS)
+        }
+    }
+
+    #[test]
+    fn round_robin_each_of_5_socket_addr_should_handle_6_request() {
+        let servers_number = 5; 
+        let mut balancer = WeightedRoundRobinLB::new(servers_number).unwrap();
+        
+        balancer.insert_socket_address(SocketAddress(String::from("127.0.0.1"), String::from("9000"))).unwrap();
+        balancer.insert_socket_address(SocketAddress(String::from("192.168.1.34"), String::from("8080"))).unwrap();
+        balancer.insert_socket_address(SocketAddress(String::from("192.168.0.0"), String::from("80"))).unwrap();
+        balancer.insert_socket_address(SocketAddress(String::from("21.78.123.45"), String::from("7890"))).unwrap();
+        balancer.insert_socket_address(SocketAddress(String::from("189.24.255.255"), String::from("26748"))).unwrap();
+        
+        let balancer = Arc::new(balancer);
+        let hash = Arc::new(DashMap::new());
+        let mut handles = vec![];
+
+        for _ in 0..servers_number {
+
+            let balancer = Arc::clone(&balancer);
+            let hash = Arc::clone(&hash);
+
+            let handle = thread::spawn(move || {
+                for _ in 0..(servers_number+1) {
+                    let mut counter = hash.entry(balancer.next_server().to_string()).or_insert(0);
+                    *counter += 1;
+                }
+            });
+
+            handles.push(handle);
+        }
+        // join all the thread
+        for handle in handles {
+            handle.join().unwrap();
+        }
+
+        // ASSERTS
+        assert_eq!(servers_number, hash.len(), "There isn't 'servers_number' SocketAddress in DashMap");
+
+        for (_, map) in hash.iter().enumerate() {
+            assert_eq!((servers_number + 1), *map.pair().1);
         }
     }
 }
