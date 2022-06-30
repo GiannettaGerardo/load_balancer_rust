@@ -1,35 +1,29 @@
-use std::{sync::{Arc, Mutex}, fmt::{Display, self}};
+use std::sync::{Arc, Mutex};
+use crate::socket_address::*;
 
+/// Max number of servers
 pub const MAX_SERVERS: usize = 256;
+
+/// Error messages
 pub const TOO_MANY_SERVERS: &'static str = "Il numero di server supera i 256";
 pub const ZERO_OR_NEGATIVE_SERVERS: &'static str = "Il numero di server è 0 o un numero negativo";
 
-#[derive(Debug)]
-pub struct SocketAddress(pub String, pub String);
 
-impl SocketAddress {
-    pub fn to_string(&self) -> String {
-        let mut s = String::with_capacity(20);
-        s.push_str(&self.0);
-        s.push(':');
-        s.push_str(&self.1);
-        return s;
-    }
-}
-
-impl Display for SocketAddress {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.to_string())
-    }
-}
-
+/// The main struct for storing the Socket Address of each server
+/// and perform Round Robin Algorithm
 #[derive(Debug)]
 pub struct WeightedRoundRobinLB {
+    /// stores the Scoket Address of each server
     addresses: Vec<SocketAddress>,
+    /// index of the vector, used for concurrent access at the vector
     index: Arc<Mutex<usize>>
 }
 
 impl WeightedRoundRobinLB {
+    /// Create and return a new instance of WeightedRoundRobinLB struct
+    /// # Arguments
+    ///
+    /// * `servers_number` - the capacity of the inner vector
     pub fn new(servers_number: usize) -> Result<Self, &'static str> {
         if servers_number > MAX_SERVERS {
             return Err(TOO_MANY_SERVERS);
@@ -43,6 +37,12 @@ impl WeightedRoundRobinLB {
         })
     }
 
+    /// Insert a new SocketAddress in the inner vector.
+    /// Return an error if the len of vector is already 
+    /// at the max capacity MAX_SERVERS.
+    /// # Arguments
+    ///
+    /// * `servers_number` - the capacity of the inner vector
     pub fn insert_socket_address(&mut self, socket_address: SocketAddress) -> Result<(), &'static str> {
         if self.addresses.len() + 1 > MAX_SERVERS {
             return Err(TOO_MANY_SERVERS);
@@ -51,16 +51,21 @@ impl WeightedRoundRobinLB {
         Ok(())
     }
 
+    /// Implement a multithreaded round robin algorithm.
+    /// Return the socket address of the next server in the inner vector.
+    /// This operation is thread safe.
     pub fn next_server(&self) -> &SocketAddress {
         let mut idx = self.index.lock().unwrap();
         *idx = (*idx + 1) % self.addresses.len();
         &self.addresses[*idx]
     }
 
+    /// Return the len of the inner vector
     pub fn n_of_servers(&self) -> usize {
         self.addresses.len()
     }
 
+    // Return the capacity of the inner vector
     pub fn capacity(&self) -> usize {
         self.addresses.capacity()
     }
