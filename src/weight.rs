@@ -6,7 +6,7 @@ use crate::socket_address::*;
 pub struct Weight {
     socket_address: SocketAddress,
     weight: usize,
-    request_counter: Arc<Mutex<usize>>
+    request_counter: Mutex<usize>
 }
 
 impl Weight {
@@ -14,7 +14,7 @@ impl Weight {
         Weight {
             socket_address,
             weight,
-            request_counter: Arc::new(Mutex::new(0))
+            request_counter: Mutex::new(0)
         }
     }
 
