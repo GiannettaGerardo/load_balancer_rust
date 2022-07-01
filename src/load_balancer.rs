@@ -1,5 +1,6 @@
 use std::sync::{Arc, Mutex};
 use crate::socket_address::*;
+use crate::weight::*;
 
 /// Max number of servers
 pub const MAX_SERVERS: usize = 256;
@@ -7,14 +8,14 @@ pub const MAX_SERVERS: usize = 256;
 /// Error messages
 pub const TOO_MANY_SERVERS: &'static str = "Il numero di server supera i 256";
 pub const ZERO_OR_NEGATIVE_SERVERS: &'static str = "Il numero di server è 0 o un numero negativo";
-
+pub const INDEX_PROBLEM: &'static str = "There is a problem with the index";
 
 /// The main struct for storing the Socket Address of each server
 /// and perform Round Robin Algorithm
 #[derive(Debug)]
 pub struct WeightedRoundRobinLB {
     /// stores the Scoket Address of each server
-    addresses: Vec<SocketAddress>,
+    addresses: Vec<Weight>,
     /// index of the vector, used for concurrent access at the vector
     index: Arc<Mutex<usize>>
 }
@@ -43,21 +44,28 @@ impl WeightedRoundRobinLB {
     /// # Arguments
     ///
     /// * `servers_number` - the capacity of the inner vector
-    pub fn insert_socket_address(&mut self, socket_address: SocketAddress) -> Result<(), &'static str> {
+    pub fn insert_socket_address(&mut self, socket_address: SocketAddress, weight: usize) -> Result<(), &'static str> {
         if self.addresses.len() + 1 > MAX_SERVERS {
             return Err(TOO_MANY_SERVERS);
         }
-        self.addresses.push(socket_address);
+        self.addresses.push(Weight::new(socket_address, weight));
         Ok(())
     }
 
-    /// Implement a multithreaded round robin algorithm.
-    /// Return the socket address of the next server in the inner vector.
+    /// Implement a multithreaded weighted round robin algorithm.
+    /// Return the socket address of the next server.
     /// This operation is thread safe.
     pub fn next_server(&self) -> &SocketAddress {
         let mut idx = self.index.lock().unwrap();
-        *idx = (*idx + 1) % self.addresses.len();
-        &self.addresses[*idx]
+        let option = self.addresses[*idx].next_request();
+        
+        match option {
+            Some(socket_address) => return socket_address,
+            None => {
+                *idx = (*idx + 1) % self.addresses.len();
+                return self.addresses[*idx].next_request().expect(INDEX_PROBLEM);
+            }
+        }
     }
 
     /// Return the len of the inner vector

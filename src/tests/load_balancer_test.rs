@@ -3,9 +3,14 @@ mod tests {
     use std::{sync::Arc, thread};
     use dashmap::DashMap;
     use crate::load_balancer::*;
+    use crate::socket_address::*;
 
     fn add_soc_addr(wrrlb: &mut WeightedRoundRobinLB) -> Result<(), &'static str> {
-        wrrlb.insert_socket_address(SocketAddress(String::from("127.0.0.1"), String::from("9000")))
+        wrrlb.insert_socket_address(
+            SocketAddress::new(String::from("127.0.0.1"), String::from("9000"))
+                .unwrap(),
+                1
+        )
     }
 
     fn create_filled_load_balancer() -> WeightedRoundRobinLB {
@@ -70,12 +75,33 @@ mod tests {
     fn round_robin_each_of_5_socket_addr_should_handle_6_request() {
         let servers_number = 5; 
         let mut balancer = WeightedRoundRobinLB::new(servers_number).unwrap();
+
+        let one = String::from("127.0.0.1:9000");
+        let two = String::from("192.168.1.34:8080");
+        let three = String::from("192.168.0.0:80");
+        let four = String::from("21.78.123.45:7890");
+        let five = String::from("189.24.255.255:26748");
         
-        balancer.insert_socket_address(SocketAddress(String::from("127.0.0.1"), String::from("9000"))).unwrap();
-        balancer.insert_socket_address(SocketAddress(String::from("192.168.1.34"), String::from("8080"))).unwrap();
-        balancer.insert_socket_address(SocketAddress(String::from("192.168.0.0"), String::from("80"))).unwrap();
-        balancer.insert_socket_address(SocketAddress(String::from("21.78.123.45"), String::from("7890"))).unwrap();
-        balancer.insert_socket_address(SocketAddress(String::from("189.24.255.255"), String::from("26748"))).unwrap();
+        balancer.insert_socket_address(
+            SocketAddress::new(String::from("127.0.0.1"), String::from("9000")).unwrap(), 
+            1
+        ).unwrap();
+        balancer.insert_socket_address(
+            SocketAddress::new(String::from("192.168.1.34"), String::from("8080")).unwrap(),
+            2
+        ).unwrap();
+        balancer.insert_socket_address(
+            SocketAddress::new(String::from("192.168.0.0"), String::from("80")).unwrap(), 
+            3
+        ).unwrap();
+        balancer.insert_socket_address(
+            SocketAddress::new(String::from("21.78.123.45"), String::from("7890")).unwrap(),
+            1
+        ).unwrap();
+        balancer.insert_socket_address(
+            SocketAddress::new(String::from("189.24.255.255"), String::from("26748")).unwrap(),
+            2
+        ).unwrap();
         
         let balancer = Arc::new(balancer);
         let hash = Arc::new(DashMap::new());
@@ -88,7 +114,7 @@ mod tests {
 
             let handle = thread::spawn(move || {
                 for _ in 0..(servers_number+1) {
-                    let mut counter = hash.entry(balancer.next_server().to_string()).or_insert(0);
+                    let mut counter = hash.entry(balancer.next_server().get()).or_insert(0);
                     *counter += 1;
                 }
             });
@@ -103,8 +129,11 @@ mod tests {
         // ASSERTS
         assert_eq!(servers_number, hash.len(), "There isn't 'servers_number' SocketAddress in DashMap");
 
-        for (_, map) in hash.iter().enumerate() {
-            assert_eq!((servers_number + 1), *map.pair().1);
-        }
+        assert_eq!(4, *hash.get(&one).unwrap());
+        assert_eq!(8, *hash.get(&two).unwrap());
+        assert_eq!(9, *hash.get(&three).unwrap());
+        assert_eq!(3, *hash.get(&four).unwrap());
+        assert_eq!(6, *hash.get(&five).unwrap());
+
     }
 }
