@@ -6,8 +6,6 @@ mod tests;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::io::{AsyncReadExt, AsyncWriteExt as _};
 
-use std::str::from_utf8;
-
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
@@ -30,30 +28,48 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     Ok(())
 }
 
-// Test
-async fn response(mut socket: TcpStream) {
-    let http_res = "HTTP/1.1 200 OK\r\nContent-Length: 4\r\n\r\nCiao";
-    if let Err(e) = socket.write_all(http_res.as_bytes()).await {
-        eprintln!("failed to write to socket; err = {:?}", e);
-        return;
-    }
-}
-
-// Test
+/// Process the request
 async fn process(mut socket: TcpStream) {
-    let mut buf = [0; 1024];
-    // In a loop, read data from the socket and write the data back.
-    loop {
-        match socket.read(&mut buf).await {
-            // socket closed
-            Ok(n) if n == 0 => return,
-            Ok(n) => n,
-            Err(e) => {
-                eprintln!("failed to read from socket; err = {:?}", e);
+    let test_server = "127.0.0.1:7878"; // test
+
+    let mut buf = vec![0u8; 8192 + 1];
+
+    let res = read_in_loop(&mut socket, &mut buf).await;
+    println!("size: {}\n", res);
+
+    match TcpStream::connect(test_server).await {
+        Ok(mut s2) => {
+            s2.write_all(&buf[..]).await.unwrap();
+            if read_in_loop(&mut s2, &mut buf).await != 0 {
+                socket.write_all(&buf[..]).await.unwrap()
+            }
+            else {
+                eprintln!("failed to read from socket 2");
                 return;
             }
-        };
+        },
+        Err(_) => {
+            eprintln!("failed to open socket 2");
+            return
+        }
+    };
+}
 
-        println!("{}", from_utf8(&buf).unwrap_or_else(|_| "FINEEE"));
+/// Reads data from socket until all data are arrived
+async fn read_in_loop(socket: &mut TcpStream, buf: &mut Vec<u8>) -> usize {
+    let mut m = 1;
+    loop {
+        m = match (*socket).read(&mut buf[(m-1)..]).await {
+            Ok(n) if n <= 0 => break n + (m - 1),
+            Ok(n) if n < (buf.len() - (m - 1)) => break n + (m - 1),
+            Ok(n) => {
+                buf.resize(buf.len() * 2, 0u8);
+                n + (m - 1)
+            },
+            Err(e) => {
+                eprintln!("failed to read from socket; err = {:?}", e);
+                return 0;
+            }
+        };
     }
 }
