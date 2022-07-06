@@ -1,6 +1,6 @@
 use std::sync::Mutex;
 
-use crate::socket_address::*;
+use crate::server::socket_address::SocketAddress;
 
 #[derive(Debug)]
 pub struct Weight {

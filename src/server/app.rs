@@ -1,8 +1,14 @@
 use std::sync::Arc;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::io::{AsyncReadExt, AsyncWriteExt as _};
-use crate::socket_address::SocketAddress;
-use crate::load_balancer::WeightedRoundRobinLB;
+use crate::{
+    server::socket_address::*, 
+    balancers::{
+        standard_weighted_load_balancer::load_balancer::*, 
+        load_balancer_factory, 
+        LoadBalancer
+    }
+};
 
 /// Manage the app execution
 pub struct App {
@@ -124,7 +130,8 @@ async fn read_in_loop(socket: &mut TcpStream, buf: &mut Vec<u8>) -> usize {
 
 /// Only for testing purposes
 fn get_load_balancer() -> WeightedRoundRobinLB {
-    let mut balancer = WeightedRoundRobinLB::new(2).unwrap();
+    
+    let mut balancer = load_balancer_factory::<WeightedRoundRobinLB>(2).unwrap();
     
     balancer.insert_socket_address(
         SocketAddress::new(String::from("127.0.0.1"), String::from("7878")).unwrap(), 

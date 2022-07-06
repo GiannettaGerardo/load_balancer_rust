@@ -2,8 +2,14 @@
 mod tests {
     use std::{sync::Arc, thread};
     use dashmap::DashMap;
-    use crate::load_balancer::*;
-    use crate::socket_address::*;
+    use crate::{
+        server::socket_address::*,
+        balancers::{
+            LoadBalancer,
+            load_balancer_factory,
+            standard_weighted_load_balancer::load_balancer::*
+        }
+    };
 
     fn add_soc_addr(wrrlb: &mut WeightedRoundRobinLB) -> Result<(), &'static str> {
         wrrlb.insert_socket_address(
@@ -15,7 +21,7 @@ mod tests {
 
     fn create_filled_load_balancer() -> WeightedRoundRobinLB {
         let dim = 5;
-        let mut b = WeightedRoundRobinLB::new(dim).unwrap();
+        let mut b = load_balancer_factory::<WeightedRoundRobinLB>(dim).unwrap();
         for _ in 0..dim {
             add_soc_addr(&mut b).unwrap();
         }
@@ -31,7 +37,7 @@ mod tests {
 
     #[test]
     fn max_number_of_servers_has_max_capacity() {
-        let fixture = WeightedRoundRobinLB::new(MAX_SERVERS);
+        let fixture = load_balancer_factory::<WeightedRoundRobinLB>(MAX_SERVERS);
         match fixture {
             Ok(fixture) => assert_eq!(fixture.capacity(), MAX_SERVERS),
             Err(_) => panic!("max_number_of_servers_has_max_capacity")
@@ -40,7 +46,7 @@ mod tests {
 
     #[test]
     fn zero_servers_return_string_error() {
-        let fixture = WeightedRoundRobinLB::new(0);
+        let fixture = load_balancer_factory::<WeightedRoundRobinLB>(0);
         match fixture {
             Err(e) => assert_eq!(ZERO_OR_NEGATIVE_SERVERS, e),
             Ok(_) => panic!("n257_servers_return_error")
@@ -49,7 +55,7 @@ mod tests {
 
     #[test]
     fn max_plus_one_servers_return_string_error() {
-        let fixture = WeightedRoundRobinLB::new(MAX_SERVERS + 1);
+        let fixture = load_balancer_factory::<WeightedRoundRobinLB>(MAX_SERVERS + 1);
         match fixture {
             Err(e) => assert_eq!(TOO_MANY_SERVERS, e),
             Ok(_) => panic!("n257_servers_return_error")
@@ -58,7 +64,7 @@ mod tests {
 
     #[test]
     fn push_max_plus_one_server_should_return_error() {
-        let mut fixture = WeightedRoundRobinLB::new(MAX_SERVERS).unwrap();
+        let mut fixture = load_balancer_factory::<WeightedRoundRobinLB>(MAX_SERVERS).unwrap();
         for _ in 0..MAX_SERVERS {
             match add_soc_addr(&mut fixture) {
                 Ok(()) => continue,
@@ -74,7 +80,7 @@ mod tests {
     #[test]
     fn round_robin_each_of_5_socket_addr_should_handle_6_request() {
         let servers_number = 5; 
-        let mut balancer = WeightedRoundRobinLB::new(servers_number).unwrap();
+        let mut balancer = load_balancer_factory::<WeightedRoundRobinLB>(servers_number).unwrap();
 
         let one = String::from("127.0.0.1:9000");
         let two = String::from("192.168.1.34:8080");

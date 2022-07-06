@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::socket_address::*;
+    use crate::server::socket_address::*;
 
     #[test]
     fn should_not_pass_test_ptest() {

@@ -1,12 +1,12 @@
-mod app;
-mod load_balancer;
-mod weight;
-mod socket_address;
+mod server;
+mod balancers;
 mod tests;
 
 use tokio::signal;
-use crate::app::App;
-use crate::socket_address::SocketAddress;
+use crate::server::{
+    app::App, 
+    socket_address::SocketAddress
+};
 
 
 #[tokio::main]
