@@ -5,7 +5,6 @@ mod socket_address;
 mod tests;
 
 use tokio::signal;
-
 use crate::app::App;
 use crate::socket_address::SocketAddress;
 
