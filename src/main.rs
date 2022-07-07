@@ -2,9 +2,12 @@ mod server;
 mod balancers;
 mod tests;
 
+use std::path::Path;
+
+use balancers::standard_weighted_load_balancer::load_balancer::WeightedRoundRobinLB;
 use tokio::signal;
 use crate::server::{
-    app::App, 
+    app::Server,
     socket_address::SocketAddress
 };
 
@@ -17,9 +20,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     ).unwrap();
 
     tokio::spawn(async move {
-        App::new()
-            .listen_on(soc_addr)
-            .run()
+        Server::new(soc_addr, Path::new("config.json"))
+            .run::<WeightedRoundRobinLB>()
             .await;
     });
 

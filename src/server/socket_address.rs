@@ -29,8 +29,8 @@ impl SocketAddress {
         }
         let bytes_splitted = ipv4.split(".");
         for byte in bytes_splitted {
-            let byte_pared: Result<i32, _> = byte.parse();
-            match byte_pared {
+            let byte_parsed: Result<i32, _> = byte.parse();
+            match byte_parsed {
                 Err(_) => return Err(IPV4_ERROR),
                 Ok(n) => if n > 255 {return Err(IPV4_ERROR);}
             };

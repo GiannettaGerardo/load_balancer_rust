@@ -1,47 +1,116 @@
+use core::panic;
+use std::path::Path;
 use std::sync::Arc;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::io::{AsyncReadExt, AsyncWriteExt as _};
 use crate::{
     server::socket_address::*, 
     balancers::{
-        standard_weighted_load_balancer::load_balancer::*, 
         load_balancer_factory, 
         LoadBalancer
     }
 };
 
 /// Manage the app execution
-pub struct App {
-    listening_socket_addr: Option<SocketAddress>
+pub struct Server<'a> {
+    listening_socket_addr: SocketAddress,
+    file_path: &'a Path,
+
 }
 
-impl App {
-    pub fn new() -> Self {
-        App { listening_socket_addr: None }
+impl<'a> Server<'a> {
+    pub fn new(socket_addr: SocketAddress, file_path: &'a Path) -> Self {
+        Server { 
+            listening_socket_addr: socket_addr, 
+            file_path
+        }
     }
 
-    /// Set the socket address for listening.
-    pub fn listen_on(mut self, socket_addr: SocketAddress) -> Self {
-        self.listening_socket_addr = Some(socket_addr);
-        self
+    /// Open the configuration json file and extract the servers data.
+    fn configure(&self) -> Vec<(SocketAddress, usize)> {
+        let file = match std::fs::OpenOptions::new()
+                .write(false)
+                .read(true)
+                .open(self.file_path) {
+            Ok(file) => file,
+            Err(_) => panic!("The path of the file isn't correct")
+        };
+
+        let json: serde_json::Value = match serde_json::from_reader(file) {
+            Ok(json) => json,
+            Err(_) => panic!("The json format isn't correct")
+        };
+
+        let servers_arr = match json["Servers"].as_array() {
+            Some(arr) => arr,
+            None => panic!("The is no \"Servers\" key in the json")
+        };
+        let servers: Vec<(SocketAddress, usize)> = servers_arr.iter()
+        .map(|element|
+            match element["ipv4"].as_str() {
+                Some(ipv4) => 
+                    match element["port"].as_str() {
+                        Some(port) => 
+                            match SocketAddress::new(ipv4.to_string(), port.to_string()) {
+                                Ok(socket_addr) => 
+                                    match element["weight"].as_u64() {
+                                        Some(weight) => (socket_addr, weight as usize),
+                                        None => panic!("The is no \"weight\" key in this json object")
+                                    },
+                                Err(e) => panic!("{e}")
+                            },
+                        None => panic!("The is no \"port\" key in this json object")
+                    },
+                None => panic!("The is no \"ipv4\" key in this json object")
+            }
+        )
+        .collect();
+
+        servers
+    }
+
+    /// Create, fill and return the load balancer generic struct.
+    fn fill_the_balancer<T>(&self) -> T
+    where T: LoadBalancer + Sync + Send + 'static {
+        let mut balancer = match load_balancer_factory::<T>(5) {
+            Ok(balancer) => balancer,
+            Err(e) => panic!("{e}")
+        };
+        for (socket_address, weight) in self.configure() {
+            match balancer.insert_socket_address(socket_address, weight) {
+                Ok(_) => (),
+                Err(e) => panic!("{e}")
+            };
+        }
+        balancer
     }
 
     /// Starts the server.
-    pub async fn run(self) {
-        let soc_addr = self.listening_socket_addr.expect("Error");
-        let balancer = Arc::new(get_load_balancer());
+    pub async fn run<T>(&mut self)
+    where T: LoadBalancer + Sync + Send + 'static {
+        let balancer = Arc::new(self.fill_the_balancer::<T>());
 
         println!("Starting the server...");
     
         // Bind the listener to the address
-        let listener = TcpListener::bind(soc_addr.get()).await.unwrap();
+        let listener = match TcpListener::bind(self.listening_socket_addr.get())
+        .await {
+            Ok(listener) => listener,
+            Err(e) => panic!("{e}")
+        };
 
-        println!("Listening on {}...", soc_addr.get());
+        println!("Listening on {}...", self.listening_socket_addr.get());
     
         loop {
             let balancer = Arc::clone(&balancer);
             // The second item contains the IP and port of the new connection.
-            let (socket, _) = listener.accept().await.unwrap();
+            let socket = match listener.accept().await {
+                Ok((socket, _)) => socket,
+                Err(e) => {
+                    println!("{e}");
+                    continue
+                }
+            };
             // A new task is spawned for each inbound socket. The socket is
             // moved to the new task and processed there.
             tokio::spawn(async move {
@@ -126,21 +195,4 @@ async fn read_in_loop(socket: &mut TcpStream, buf: &mut Vec<u8>) -> usize {
             }
         };
     }
-}
-
-/// Only for testing purposes
-fn get_load_balancer() -> WeightedRoundRobinLB {
-    
-    let mut balancer = load_balancer_factory::<WeightedRoundRobinLB>(2).unwrap();
-    
-    balancer.insert_socket_address(
-        SocketAddress::new(String::from("127.0.0.1"), String::from("7878")).unwrap(), 
-        1
-    ).unwrap();
-    balancer.insert_socket_address(
-        SocketAddress::new(String::from("127.0.0.1"), String::from("7879")).unwrap(), 
-        3
-    ).unwrap();
-
-    balancer
 }

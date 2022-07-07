@@ -52,7 +52,7 @@ pub trait LoadBalancer {
 /// 
 /// * A result with Self struct or an error string  
 pub fn load_balancer_factory<T>(servers_number: usize) -> Result<T, &'static str>
-where T: LoadBalancer {
+where T: LoadBalancer + Sync + Send + 'static {
     match T::new(servers_number) {
         Ok(t) => Ok(*t),
         Err(e) => Err(e)

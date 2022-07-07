@@ -1,9 +1,11 @@
 use std::sync::{Arc, Mutex};
 use crate::{
     server::socket_address::*,
-    balancers::standard_weighted_load_balancer::weight::*
+    balancers::{
+        standard_weighted_load_balancer::weight::*, 
+        LoadBalancer
+    }
 };
-use super::super::LoadBalancer;
 
 /// Max number of servers
 pub const MAX_SERVERS: usize = 256;
@@ -38,7 +40,7 @@ impl WeightedRoundRobinLB {
 }
 
 impl LoadBalancer for WeightedRoundRobinLB {
-    
+
     fn new(servers_number: usize) -> Result<Box<Self>, &'static str> {
         if servers_number > MAX_SERVERS {
             return Err(TOO_MANY_SERVERS);
