@@ -1,9 +1,9 @@
 use std::fmt::{Display, self};
 use regex::Regex;
 
-pub const IPV4_REGEX: &'static str = r"^(\d{1,3}\.){3}\d{1,3}$";
-pub const IPV4_ERROR: &'static str = "Invalid IPv4 address";
-pub const PORT_NUMBER_ERROR: &'static str = "Invalid Port Number";
+pub static IPV4_REGEX: &str = r"^(\d{1,3}\.){3}\d{1,3}$";
+pub static IPV4_ERROR: &str = "Invalid IPv4 address";
+pub static PORT_NUMBER_ERROR: &str = "Invalid Port Number";
 
 
 /// Stores a socket address

@@ -2,7 +2,7 @@
 mod tests {
     use std::{sync::Arc, thread};
     use dashmap::DashMap;
-    use crate::{
+    pub use crate::{
         server::socket_address::*,
         balancers::{
             LoadBalancer,

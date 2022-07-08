@@ -3,10 +3,9 @@ mod balancers;
 mod tests;
 
 use std::path::Path;
-
 use balancers::standard_weighted_load_balancer::load_balancer::WeightedRoundRobinLB;
 use tokio::signal;
-use crate::server::{
+use server::{
     app::Server,
     socket_address::SocketAddress
 };

@@ -11,9 +11,9 @@ use crate::{
 pub const MAX_SERVERS: usize = 256;
 
 /// Error messages
-pub const TOO_MANY_SERVERS: &'static str = "Il numero di server supera i 256";
-pub const ZERO_OR_NEGATIVE_SERVERS: &'static str = "Il numero di server è 0 o un numero negativo";
-pub const INDEX_PROBLEM: &'static str = "There is a problem with the index";
+pub static TOO_MANY_SERVERS: &str = "Il numero di server supera i 256";
+pub static ZERO_OR_NEGATIVE_SERVERS: &str = "Il numero di server è 0 o un numero negativo";
+pub static INDEX_PROBLEM: &str = "There is a problem with the index";
 
 /// The main struct for storing the Socket Address of each server
 /// and perform Round Robin Algorithm
