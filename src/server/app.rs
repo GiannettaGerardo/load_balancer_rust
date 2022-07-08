@@ -24,6 +24,10 @@ impl Server {
     }
 
     /// Starts the server.
+    /// # Arguments
+    /// 
+    /// * `servers` - a vector with tuples (socket address, relative weight)
+    /// 
     /// # Generics
     /// 
     /// * `T` - load balancer type
@@ -33,7 +37,6 @@ impl Server {
 
         println!("Starting the server...");
     
-        // Bind the listener to the address
         let listener = match TcpListener::bind(self.listening_socket_addr.get())
         .await {
             Ok(listener) => listener,
@@ -44,7 +47,7 @@ impl Server {
     
         loop {
             let balancer = Arc::clone(&balancer);
-            // The second item contains the IP and port of the new connection.
+
             let socket = match listener.accept().await {
                 Ok((socket, _)) => socket,
                 Err(e) => {
@@ -52,8 +55,7 @@ impl Server {
                     continue
                 }
             };
-            // A new task is spawned for each inbound socket. The socket is
-            // moved to the new task and processed there.
+
             tokio::spawn(async move {
                 process(socket, balancer.next_server()).await;
             });
@@ -96,6 +98,15 @@ async fn process(mut sender_socket: TcpStream, socket_address: &SocketAddress) {
 }
 
 /// Reads data from socket until all data are arrived
+/// # Arguments
+///
+/// * `socket` - the socket from which to read the data.
+/// * `buf` - the buffer in which to save the read data.
+/// 
+/// # Return
+///
+/// * The number of bytes read.
+/// 
 /// # Example
 /// ```
 /// buf.len = 8000
@@ -111,15 +122,6 @@ async fn process(mut sender_socket: TcpStream, socket_address: &SocketAddress) {
 ///           n < (buf.len() - m) = 1 < 16000 - 8000 = 1 < 8000 = true
 ///              return n + m = 1 + 8000
 /// ```
-/// # Arguments
-///
-/// * `socket` - the socket from which to read the data.
-/// * `buf` - the buffer in which to save the read data.
-/// 
-/// # Return
-///
-/// * The number of bytes read.
-/// 
 async fn read_in_loop(socket: &mut TcpStream, buf: &mut Vec<u8>) -> usize {
     let mut m = 0;
     loop {

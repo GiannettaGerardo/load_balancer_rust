@@ -1,8 +1,6 @@
 pub mod standard_weighted_load_balancer;
 
 use std::path::Path;
-use crate::server::socket_address::{IPV4_ERROR, PORT_NUMBER_ERROR};
-
 use super::server::socket_address::SocketAddress;
 
 // json keys
@@ -107,10 +105,10 @@ pub fn configure<'a>(file_path: &'a Path) -> (SocketAddress, Vec<(SocketAddress,
     let listen_to = json[SERVER_SOCADDR_KEY].as_object().expect(NO_LISTEN_TO_KEY);
     let server_socket_address = match SocketAddress::new(
         listen_to.get(IPV4_KEY).expect(NO_IPV4_KEY)
-            .as_str().expect(IPV4_ERROR)
+            .as_str().expect(NO_IPV4_KEY)
             .to_string(),
         listen_to.get(PORT_KEY).expect(NO_PORT_KEY)
-            .as_str().expect(PORT_NUMBER_ERROR)
+            .as_str().expect(NO_IPV4_KEY)
             .to_string()
     ) {
         Ok(server_socket_address) => server_socket_address,

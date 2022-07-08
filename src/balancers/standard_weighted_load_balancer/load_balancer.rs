@@ -7,12 +7,12 @@ use crate::{
     }
 };
 
-/// Max number of servers
+// Max number of servers
 pub const MAX_SERVERS: usize = 256;
 
-/// Error messages
-pub static TOO_MANY_SERVERS: &str = "Il numero di server supera i 256";
-pub static ZERO_OR_NEGATIVE_SERVERS: &str = "Il numero di server è 0 o un numero negativo";
+// Error messages
+pub static TOO_MANY_SERVERS: &str = "The number of servers is over 256";
+pub static ZERO_OR_NEGATIVE_SERVERS: &str = "The number of servers is 0 or a negative number";
 pub static INDEX_PROBLEM: &str = "There is a problem with the index";
 
 /// The main struct for storing the Socket Address of each server
