@@ -1,10 +1,13 @@
 pub mod standard_weighted_load_balancer;
 
 use std::path::Path;
+use crate::server::socket_address::{IPV4_ERROR, PORT_NUMBER_ERROR};
+
 use super::server::socket_address::SocketAddress;
 
 // json keys
 static SERVERS_KEY: &str = "Servers";
+static SERVER_SOCADDR_KEY: &str = "Listen_to";
 static IPV4_KEY: &str = "ipv4";
 static PORT_KEY: &str = "port";
 static WEIGHT_KEY: &str = "weight";
@@ -13,9 +16,11 @@ static WEIGHT_KEY: &str = "weight";
 static INCORRECT_PATH: &str = "The path of the file isn't correct";
 static INCORRECT_JSON_FORMAT: &str = "The json format isn't correct";
 static NO_SERVERS_KEY: &str = "The is no \"Servers\" key in the json";
+static NO_LISTEN_TO_KEY: &str = "The is no \"Listen_to\" key in the json";
 static NO_IPV4_KEY: &str = "The is no \"ipv4\" key in the json";
 static NO_PORT_KEY: &str = "The is no \"port\" key in the json";
 static NO_WEIGHT_KEY: &str = "The is no \"weight\" key in the json";
+static EMPTY_SERVERS_VEC: &str = "Empty Servers key";
 
 
 /// An interface for all the load balancers implementation
@@ -87,8 +92,9 @@ where T: LoadBalancer + Sync + Send + 'static {
 /// 
 /// # Return
 /// 
-/// * A vector with tuples containing the socket address and the relative weight
-pub fn configure<'a>(file_path: &'a Path) -> Vec<(SocketAddress, usize)> {
+/// * Socket address of the server and a vector with tuples
+///   containing the socket address and the relative weight
+pub fn configure<'a>(file_path: &'a Path) -> (SocketAddress, Vec<(SocketAddress, usize)>) {
     let file = std::fs::OpenOptions::new()
             .write(false)
             .read(true)
@@ -98,8 +104,24 @@ pub fn configure<'a>(file_path: &'a Path) -> Vec<(SocketAddress, usize)> {
     let json: serde_json::Value = serde_json::from_reader(file)
         .expect(INCORRECT_JSON_FORMAT);
 
+    let listen_to = json[SERVER_SOCADDR_KEY].as_object().expect(NO_LISTEN_TO_KEY);
+    let server_socket_address = match SocketAddress::new(
+        listen_to.get(IPV4_KEY).expect(NO_IPV4_KEY)
+            .as_str().expect(IPV4_ERROR)
+            .to_string(),
+        listen_to.get(PORT_KEY).expect(NO_PORT_KEY)
+            .as_str().expect(PORT_NUMBER_ERROR)
+            .to_string()
+    ) {
+        Ok(server_socket_address) => server_socket_address,
+        Err(e) => panic!("{e}")
+    };
+
     let servers_arr = json[SERVERS_KEY].as_array()
         .expect(NO_SERVERS_KEY);
+    if servers_arr.is_empty() {
+        panic!("{EMPTY_SERVERS_VEC}");
+    }
 
     let servers: Vec<(SocketAddress, usize)> = servers_arr.iter()
     .map(|element| {
@@ -122,14 +144,14 @@ pub fn configure<'a>(file_path: &'a Path) -> Vec<(SocketAddress, usize)> {
     })
     .collect();
 
-    servers
+    (server_socket_address, servers)
 }
 
 
 /// Create, fill and return the load balancer generic struct.
 /// # Arguments
 /// 
-/// * `file_path` - the path of the configuration json file
+/// * `servers` - vector with socket addresses and relative weights
 /// 
 /// # Generics
 /// 
@@ -138,9 +160,8 @@ pub fn configure<'a>(file_path: &'a Path) -> Vec<(SocketAddress, usize)> {
 /// # Return
 /// 
 /// * A load balancer of type T
-pub fn create_and_fill_the_balancer<'a, T>(file_path: &'a Path) -> T
+pub fn create_and_fill_the_balancer<T>(servers: Vec<(SocketAddress, usize)>) -> T
 where T: LoadBalancer + Sync + Send + 'static {
-    let servers = configure(file_path);
     let mut balancer = match load_balancer_factory::<T>(servers.len()) {
         Ok(balancer) => balancer,
         Err(e) => panic!("{e}")

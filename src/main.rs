@@ -3,24 +3,25 @@ mod balancers;
 mod tests;
 
 use std::path::Path;
-use balancers::standard_weighted_load_balancer::load_balancer::WeightedRoundRobinLB;
+use balancers::{
+    standard_weighted_load_balancer::load_balancer::WeightedRoundRobinLB, 
+    configure
+};
 use tokio::signal;
 use server::{
-    app::Server,
-    socket_address::SocketAddress
+    app::Server
 };
 
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let soc_addr = SocketAddress::new(
-        String::from("127.0.0.1"), 
-        String::from("6379")
-    ).unwrap();
+    println!("Configuring the server...");
+    let (server_soc, servers_vec) = configure(Path::new("config.json"));
+    println!("Configuration completed...");
 
     tokio::spawn(async move {
-        Server::new(soc_addr, Path::new("config.json"))
-            .run::<WeightedRoundRobinLB>()
+        Server::new(server_soc)
+            .run::<WeightedRoundRobinLB>(servers_vec)
             .await;
     });
 

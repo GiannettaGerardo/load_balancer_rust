@@ -1,8 +1,5 @@
 use core::panic;
-use std::{
-    path::Path,
-    sync::Arc
-};
+use std::sync::Arc;
 use tokio::{
     net::{TcpListener, TcpStream},
     io::{AsyncReadExt, AsyncWriteExt as _}
@@ -15,17 +12,14 @@ use crate::balancers::{
 
 
 /// Manage the app execution
-pub struct Server<'a> {
-    listening_socket_addr: SocketAddress,
-    file_path: &'a Path,
-
+pub struct Server {
+    listening_socket_addr: SocketAddress
 }
 
-impl<'a> Server<'a> {
-    pub fn new(socket_addr: SocketAddress, file_path: &'a Path) -> Self {
+impl Server {
+    pub fn new(socket_addr: SocketAddress) -> Self {
         Server { 
-            listening_socket_addr: socket_addr, 
-            file_path
+            listening_socket_addr: socket_addr
         }
     }
 
@@ -33,13 +27,11 @@ impl<'a> Server<'a> {
     /// # Generics
     /// 
     /// * `T` - load balancer type
-    pub async fn run<T>(&mut self)
+    pub async fn run<T>(&mut self, servers: Vec<(SocketAddress, usize)>)
     where T: LoadBalancer + Sync + Send + 'static {
-        println!("Configuring the server...");
+        let balancer = Arc::new(create_and_fill_the_balancer::<T>(servers));
 
-        let balancer = Arc::new(create_and_fill_the_balancer::<T>(self.file_path));
-
-        println!("Configuration completed...\nStarting the server...");
+        println!("Starting the server...");
     
         // Bind the listener to the address
         let listener = match TcpListener::bind(self.listening_socket_addr.get())
