@@ -10,6 +10,8 @@ use crate::balancers::{
     create_and_fill_the_balancer
 };
 
+const INITIAL_BUFFER_SIZE: usize = 8193;
+
 
 /// Manage the app execution
 pub struct Server {
@@ -74,24 +76,29 @@ impl Server {
 /// * `socket_address` -  the socket address of the server to which 
 ///                       to redirect the sender's request.
 async fn process(mut sender_socket: TcpStream, socket_address: &SocketAddress) {
-    let mut buf = vec![0u8; 8193];
+    let mut buf = vec![0u8; INITIAL_BUFFER_SIZE];
+    let string_soc_addr = socket_address.get();
 
-    println!("Socket usata con porta {}", socket_address.get_port_number()); // test
+    print!("used_socket: {} - ", string_soc_addr); // log
 
     let total_bytes = read_in_loop(&mut sender_socket, &mut buf).await;
-    println!("size: {}\n", total_bytes);
+    println!("bytes_read: {}", total_bytes); // log
 
-    match TcpStream::connect(socket_address.get()).await {
+    match TcpStream::connect(string_soc_addr).await {
         Ok(mut receiver_socket) => {
-            receiver_socket.write_all(&buf[..total_bytes]).await.unwrap();
+            receiver_socket.write_all(&buf[..total_bytes]).await.unwrap_or_else(|error| {
+                eprintln!("receiver write_all error: {}", error) // log
+            });
             let total_bytes_2 = read_in_loop(&mut receiver_socket, &mut buf).await;
             if total_bytes_2 == 0 {
                 return
             }
-            sender_socket.write_all(&buf[..total_bytes_2]).await.unwrap()
+            sender_socket.write_all(&buf[..total_bytes_2]).await.unwrap_or_else(|error| {
+                eprintln!("sender write_all error: {}", error) // log
+            });
         },
         Err(_) => {
-            eprintln!("failed to open socket 2");
+            eprintln!("failed to open client socket"); // log
             return
         }
     };

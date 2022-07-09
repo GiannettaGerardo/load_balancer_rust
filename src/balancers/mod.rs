@@ -99,44 +99,32 @@ pub fn configure<'a>(file_path: &'a Path) -> (SocketAddress, Vec<(SocketAddress,
             .open(file_path)
             .expect(INCORRECT_PATH);
 
-    let json: serde_json::Value = serde_json::from_reader(file)
-        .expect(INCORRECT_JSON_FORMAT);
+    let json: serde_json::Value = serde_json::from_reader(file).expect(INCORRECT_JSON_FORMAT);
 
     let listen_to = json[SERVER_SOCADDR_KEY].as_object().expect(NO_LISTEN_TO_KEY);
     let server_socket_address = match SocketAddress::new(
-        listen_to.get(IPV4_KEY).expect(NO_IPV4_KEY)
-            .as_str().expect(NO_IPV4_KEY)
-            .to_string(),
-        listen_to.get(PORT_KEY).expect(NO_PORT_KEY)
-            .as_str().expect(NO_IPV4_KEY)
-            .to_string()
+        listen_to.get(IPV4_KEY).expect(NO_IPV4_KEY).as_str().expect(NO_IPV4_KEY).to_string(),
+        listen_to.get(PORT_KEY).expect(NO_PORT_KEY).as_str().expect(NO_IPV4_KEY).to_string()
     ) {
         Ok(server_socket_address) => server_socket_address,
         Err(e) => panic!("{e}")
     };
 
-    let servers_arr = json[SERVERS_KEY].as_array()
-        .expect(NO_SERVERS_KEY);
+    let servers_arr = json[SERVERS_KEY].as_array().expect(NO_SERVERS_KEY);
     if servers_arr.is_empty() {
         panic!("{EMPTY_SERVERS_VEC}");
     }
 
-    let servers: Vec<(SocketAddress, usize)> = servers_arr.iter()
-    .map(|element| {
+    let servers: Vec<(SocketAddress, usize)> = servers_arr.iter().map(|element| {
         let socket_addr = match SocketAddress::new(
-            element[IPV4_KEY].as_str()
-                .expect(NO_IPV4_KEY)
-                .to_string(), 
-            element[PORT_KEY].as_str()
-                .expect(NO_PORT_KEY)
-                .to_string()
+            element[IPV4_KEY].as_str().expect(NO_IPV4_KEY).to_string(), 
+            element[PORT_KEY].as_str().expect(NO_PORT_KEY).to_string()
         ) {
             Ok(socket_addr) => socket_addr,
             Err(e) => panic!("{e}")
         };
 
-        let weight = element[WEIGHT_KEY].as_u64()
-            .expect(NO_WEIGHT_KEY);
+        let weight = element[WEIGHT_KEY].as_u64().expect(NO_WEIGHT_KEY);
 
         (socket_addr, weight as usize)
     })
@@ -165,10 +153,9 @@ where T: LoadBalancer + Sync + Send + 'static {
         Err(e) => panic!("{e}")
     };
     for (socket_address, weight) in servers {
-        match balancer.insert_socket_address(socket_address, weight) {
-            Ok(_) => (),
-            Err(e) => panic!("{e}")
-        };
+        balancer.insert_socket_address(socket_address, weight).unwrap_or_else(|error| {
+            panic!("{error}")
+        });
     }
     balancer
 }
