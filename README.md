@@ -16,3 +16,12 @@ Set the file config.json with 2 informations:
    - "weight": number representing a weight for this server in the balancer
 
 For shutting down the server press CTRL+C
+
+# Algorithms implemented for load balancing
+
+##- Simple Weighted Round Robin
+
+There is an array of socket addresses and each socket address has a number (weight).
+Iter through the array mod array.len() (it's like having a circular array). Each socket address in the iteration is repeated "weight" times.
+- Disadvantages
+    - Use of 2 mutexes, one for the array index and one for the weight index.

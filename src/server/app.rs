@@ -87,14 +87,16 @@ async fn process(mut sender_socket: TcpStream, socket_address: &SocketAddress) {
     match TcpStream::connect(string_soc_addr).await {
         Ok(mut receiver_socket) => {
             receiver_socket.write_all(&buf[..total_bytes]).await.unwrap_or_else(|error| {
-                eprintln!("receiver write_all error: {}", error) // log
+                eprintln!("receiver write_all error: {}", error); // log
+                return
             });
             let total_bytes_2 = read_in_loop(&mut receiver_socket, &mut buf).await;
             if total_bytes_2 == 0 {
                 return
             }
             sender_socket.write_all(&buf[..total_bytes_2]).await.unwrap_or_else(|error| {
-                eprintln!("sender write_all error: {}", error) // log
+                eprintln!("sender write_all error: {}", error); // log
+                return
             });
         },
         Err(_) => {
