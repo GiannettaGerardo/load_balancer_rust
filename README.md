@@ -19,7 +19,7 @@ For shutting down the server press CTRL+C
 
 # Algorithms implemented for load balancing
 
-##- Simple Weighted Round Robin
+## Simple Weighted Round Robin
 
 There is an array of socket addresses and each socket address has a number (weight).
 Iter through the array mod array.len() (it's like having a circular array). Each socket address in the iteration is repeated "weight" times.
