@@ -14,3 +14,5 @@ Set the file config.json with 2 informations:
    - "ipv4": string representing IPv4 address
    - "port": string representing a port number
    - "weight": number representing a weight for this server in the balancer
+
+For shutting down the server press CTRL+C
